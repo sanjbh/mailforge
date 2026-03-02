@@ -17,7 +17,12 @@ func New(cfg *config.Config) (llms.Model, error) {
 	)
 }
 
-func Generate(ctx context.Context, llm llms.Model, system, prompt string) (string, error) {
+func Generate(
+	ctx context.Context,
+	llm llms.Model,
+	system, prompt string,
+	streamFunc func(ctx context.Context, chunk []byte) error,
+) (string, error) {
 	msgs := []llms.MessageContent{
 		{
 			Role: llms.ChatMessageTypeSystem,
@@ -38,8 +43,12 @@ func Generate(ctx context.Context, llm llms.Model, system, prompt string) (strin
 	}
 
 	// log.Printf("Generating content with system: %s, prompt: %s", system, prompt)
+	opts := []llms.CallOption{}
 
-	res, err := llm.GenerateContent(ctx, msgs)
+	if streamFunc != nil {
+		opts = append(opts, llms.WithStreamingFunc(streamFunc))
+	}
+	res, err := llm.GenerateContent(ctx, msgs, opts...)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate content: %w", err)
 	}

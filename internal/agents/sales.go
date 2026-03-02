@@ -78,8 +78,13 @@ func getSystemPrompt(agentType string) (string, error) {
 
 }
 
-func (s *SalesAgent) GenerateEmail(ctx context.Context, l llms.Model, prompt string) (string, error) {
-	res, err := llm.Generate(ctx, l, s.Instructions, prompt)
+func (s *SalesAgent) GenerateEmail(
+	ctx context.Context,
+	l llms.Model,
+	prompt string,
+	streamFunc func(ctx context.Context, chunk []byte) error,
+) (string, error) {
+	res, err := llm.Generate(ctx, l, s.Instructions, prompt, streamFunc)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate email: %w", err)
 	}

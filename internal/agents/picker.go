@@ -32,7 +32,7 @@ func (p *PickerAgent) PickBestEmail(ctx context.Context, l llms.Model, emails []
 		fmt.Fprintf(&buff, "Email %d:%s\n\n", i+1, email)
 	}
 
-	res, err := llm.Generate(ctx, l, systemPrompt, buff.String())
+	res, err := llm.Generate(ctx, l, systemPrompt, buff.String(), nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate email: %w", err)
 	}

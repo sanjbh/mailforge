@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sync"
 
 	"github.com/sanjbh/mailforge/internal/agents"
 	"github.com/sanjbh/mailforge/internal/config"
 	"github.com/sanjbh/mailforge/internal/llm"
+	"github.com/sanjbh/mailforge/internal/ui"
 )
 
 func main() {
@@ -17,6 +19,7 @@ func main() {
 	}
 
 	ctx := context.Background()
+	var wg sync.WaitGroup
 
 	salesAgents := make([]*agents.SalesAgent, 0)
 
@@ -24,21 +27,18 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create concise sales agent: %v", err)
 	}
-	salesAgents = append(salesAgents, conciseSalesAgent)
 
 	engagingSalesAgent, err := agents.NewEngagingSalesAgent("Engaging Sales Agent")
 	if err != nil {
 		log.Fatalf("Failed to create engaging sales agent: %v", err)
 	}
-	salesAgents = append(salesAgents, engagingSalesAgent)
 
 	professionalSalesAgent, err := agents.NewProfessionalSalesAgent("Professional Sales Agent")
 	if err != nil {
 		log.Fatalf("Failed to create professional sales agent: %v", err)
 	}
-	salesAgents = append(salesAgents, professionalSalesAgent)
 
-	var wg sync.WaitGroup
+	salesAgents = append(salesAgents, conciseSalesAgent, engagingSalesAgent, professionalSalesAgent)
 
 	prompt := "Write a cold sales email addressed to 'Dear CEO'"
 
@@ -49,31 +49,51 @@ func main() {
 
 	responseEmails := make([]string, len(salesAgents))
 
-	log.Println("Generating emails...")
+	fmt.Println()
+
+	multi, err := ui.StartMulti()
+	if err != nil {
+		log.Fatalf("Failed to start multi: %v", err)
+	}
 
 	for index, salesAgent := range salesAgents {
 		wg.Add(1)
-		go func(agent *agents.SalesAgent, idx int) {
+
+		spinner, err := ui.NewAgentSpinner(multi, salesAgent.Name)
+		if err != nil {
+			log.Fatalf("Failed to create agent spinner: %v", err)
+		}
+
+		go func(agent *agents.SalesAgent, idx int, s *ui.AgentSpinner) {
 			defer wg.Done()
-			log.Printf("Generating email for %s\n", agent.Name)
-			response, err := agent.GenerateEmail(ctx, model, prompt)
-			if err != nil {
-				log.Printf("Generate email failed for %s: %v\n", agent.Name, err)
+
+			var tokens int
+
+			streamCallback := func(ctx context.Context, chunk []byte) error {
+				tokens++
+				s.UpdateAgentSpinner(tokens)
+				return nil
 			}
-			// log.Printf("Response for %s: %s\n", agent.Name, response)
+
+			response, err := agent.GenerateEmail(ctx, model, prompt, streamCallback)
+			if err != nil {
+				s.Fail(tokens)
+			} else {
+				s.Success(tokens)
+			}
 			responseEmails[idx] = response
-		}(salesAgent, index)
+		}(salesAgent, index, spinner)
 	}
 	wg.Wait()
-	log.Println("All emails generated")
+	multi.Stop()
 
 	picker := agents.NewPickerAgent()
 
-	log.Println("Picking best email...")
+	ui.PrintInfo("Picking best email...")
 	bestEmail, err := picker.PickBestEmail(ctx, model, responseEmails)
 	if err != nil {
 		log.Fatalf("Pick best email failed: %v", err)
 	}
 
-	log.Printf("Best email: %s\n", bestEmail)
+	ui.PrintSuccess(fmt.Sprintf("Best email: %s\n", bestEmail))
 }
