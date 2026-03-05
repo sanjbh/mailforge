@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/pterm/pterm"
+	"github.com/sanjbh/mailforge/internal/agents"
 )
 
 type AgentSpinner struct {
@@ -11,15 +12,35 @@ type AgentSpinner struct {
 	Name    string
 }
 
-func StartMulti() (*pterm.MultiPrinter, error) {
-	multi := pterm.DefaultMultiPrinter
-	return multi.Start()
+var activeMulti *pterm.MultiPrinter
+
+func StartMulti() error {
+	multiPrinter := pterm.DefaultMultiPrinter
+	multi, err := multiPrinter.Start()
+	if err != nil {
+		return err
+	}
+	activeMulti = multi
+	return nil
 }
 
-func NewAgentSpinner(p *pterm.MultiPrinter, agentName string) (*AgentSpinner, error) {
+func StopMulti() error {
+	if activeMulti != nil && activeMulti.IsActive {
+		if _, err := activeMulti.Stop(); err != nil {
+			return err
+		}
+		activeMulti = nil
+	}
+	return nil
+}
+
+func NewAgentSpinner(agentName string) (*AgentSpinner, error) {
+	if activeMulti == nil {
+		return nil, fmt.Errorf("multi printer not started, call ui.StartMulti() first")
+	}
 	spinner, err := pterm.DefaultSpinner.
 		WithText(fmt.Sprintf("🤖 %s... 0 tokens", agentName)).
-		WithWriter(p.NewWriter()).
+		WithWriter(activeMulti.NewWriter()).
 		Start()
 	if err != nil {
 		return nil, fmt.Errorf("failed to start spinner: %w", err)
@@ -36,11 +57,11 @@ func (s *AgentSpinner) UpdateAgentSpinner(tokens int) {
 }
 
 func (s *AgentSpinner) Success(tokens int) {
-	s.Spinner.Success(fmt.Sprintf("🤖 %s... %d tokens", s.Name, tokens))
+	s.Spinner.Success(fmt.Sprintf("✅ %s... %d tokens", s.Name, tokens))
 }
 
 func (s *AgentSpinner) Fail(tokens int) {
-	s.Spinner.Fail(fmt.Sprintf("🤖 %s... %d tokens", s.Name, tokens))
+	s.Spinner.Fail(fmt.Sprintf("❌ %s... %d tokens", s.Name, tokens))
 }
 
 func PrintInfo(msg string) {
@@ -53,4 +74,17 @@ func PrintSuccess(msg string) {
 
 func PrintFail(msg string) {
 	pterm.Error.Println(msg)
+}
+
+func (a *AgentSpinner) Notify(event agents.AgentEvent) {
+	tokens := event.Payload
+
+	switch event.Type {
+	case agents.EventProgress:
+		a.UpdateAgentSpinner(tokens)
+	case agents.EventSuccess:
+		a.Success(tokens)
+	case agents.EventError:
+		a.Fail(tokens)
+	}
 }

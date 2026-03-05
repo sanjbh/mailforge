@@ -11,6 +11,7 @@ import (
 
 type PickerAgent struct {
 	Name string
+	Observable
 }
 
 func NewPickerAgent() *PickerAgent {
@@ -32,10 +33,22 @@ func (p *PickerAgent) PickBestEmail(ctx context.Context, l llms.Model, emails []
 		fmt.Fprintf(&buff, "Email %d:%s\n\n", i+1, email)
 	}
 
-	res, err := llm.Generate(ctx, l, systemPrompt, buff.String(), nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to generate email: %w", err)
+	tokens := 0
+
+	streamFunc := func(context context.Context, chunk []byte) error {
+		tokens++
+		p.NotifyAll(AgentEvent{Type: EventProgress, Payload: tokens})
+		return nil
 	}
+
+	res, err := llm.Generate(ctx, l, systemPrompt, buff.String(), streamFunc)
+	if err != nil {
+		p.NotifyAll(AgentEvent{Type: EventError, Payload: tokens})
+		return "", err
+		// return "", fmt.Errorf("failed to generate email: %w", err)
+	}
+
+	p.NotifyAll(AgentEvent{Type: EventSuccess, Payload: tokens})
 
 	return res, nil
 }

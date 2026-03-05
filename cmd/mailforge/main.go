@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"sync"
 
 	"github.com/sanjbh/mailforge/internal/agents"
@@ -51,49 +52,40 @@ func main() {
 
 	fmt.Println()
 
-	multi, err := ui.StartMulti()
+	err = ui.StartMulti()
 	if err != nil {
 		log.Fatalf("Failed to start multi: %v", err)
 	}
 
+	pickerSpinner, err := ui.NewAgentSpinner("Picker Agent")
+	picker := agents.NewPickerAgent()
+	picker.Register(pickerSpinner)
+
 	for index, salesAgent := range salesAgents {
 		wg.Add(1)
 
-		spinner, err := ui.NewAgentSpinner(multi, salesAgent.Name)
-		if err != nil {
-			log.Fatalf("Failed to create agent spinner: %v", err)
-		}
+		spinner, _ := ui.NewAgentSpinner(salesAgent.Name)
+		salesAgent.Register(spinner)
 
-		go func(agent *agents.SalesAgent, idx int, s *ui.AgentSpinner) {
+		go func(idx int, agent agents.SalesAgent) {
 			defer wg.Done()
-
-			var tokens int
-
-			streamCallback := func(ctx context.Context, chunk []byte) error {
-				tokens++
-				s.UpdateAgentSpinner(tokens)
-				return nil
-			}
-
-			response, err := agent.GenerateEmail(ctx, model, prompt, streamCallback)
+			response, err := agent.GenerateEmail(ctx, model, prompt)
 			if err != nil {
-				s.Fail(tokens)
-			} else {
-				s.Success(tokens)
+				ui.PrintFail(err.Error())
+				os.Exit(1)
 			}
 			responseEmails[idx] = response
-		}(salesAgent, index, spinner)
+		}(index, *salesAgent)
+
 	}
 	wg.Wait()
-	multi.Stop()
-
-	picker := agents.NewPickerAgent()
 
 	ui.PrintInfo("Picking best email...")
 	bestEmail, err := picker.PickBestEmail(ctx, model, responseEmails)
 	if err != nil {
 		log.Fatalf("Pick best email failed: %v", err)
 	}
+	ui.StopMulti()
 
 	ui.PrintSuccess(fmt.Sprintf("Best email: %s\n", bestEmail))
 }

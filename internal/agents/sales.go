@@ -15,6 +15,7 @@ import (
 var promptsFS embed.FS
 
 type SalesAgent struct {
+	Observable
 	Name         string
 	Instructions string
 }
@@ -78,7 +79,7 @@ func getSystemPrompt(agentType string) (string, error) {
 
 }
 
-func (s *SalesAgent) GenerateEmail(
+/* func (s *SalesAgent) GenerateEmail(
 	ctx context.Context,
 	l llms.Model,
 	prompt string,
@@ -91,4 +92,27 @@ func (s *SalesAgent) GenerateEmail(
 
 	return res, nil
 
+}
+*/
+
+func (s *SalesAgent) GenerateEmail(
+	ctx context.Context,
+	l llms.Model, prompt string,
+) (string, error) {
+	tokens := 0
+
+	streamFunc := func(ctx context.Context, chunk []byte) error {
+		tokens++
+		s.NotifyAll(AgentEvent{Type: EventProgress, Payload: tokens})
+		return nil
+	}
+
+	res, err := llm.Generate(ctx, l, s.Instructions, prompt, streamFunc)
+	if err != nil {
+		s.NotifyAll(AgentEvent{Type: EventError, Payload: tokens})
+		return "", err
+	}
+	s.NotifyAll(AgentEvent{Type: EventSuccess, Payload: tokens})
+
+	return res, nil
 }

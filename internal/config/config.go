@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 
+	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -17,6 +18,9 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
+	// Load .env file if it exists
+	_ = godotenv.Load()
+
 	var cfg Config
 
 	if err := envconfig.Process("", &cfg); err != nil {
