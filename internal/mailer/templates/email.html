@@ -1,81 +1,213 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ .Subject }}</title>
     <style>
-        body {
+        * {
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f4f4;
+            box-sizing: border-box;
         }
 
-        .email-container {
-            max-width: 600px;
-            margin: 40px auto;
-            background-color: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            background-color: #f0f2f5;
+            padding: 40px 20px;
         }
 
-        .email-header {
-            background-color: #007BFF;
+        .wrapper {
+            max-width: 620px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            padding: 36px 40px;
+            border-radius: 12px 12px 0 0;
+            text-align: center;
+        }
+
+        .header .logo {
+            font-size: 22px;
+            font-weight: 700;
             color: #ffffff;
-            padding: 20px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .header .logo span {
+            color: #e94560;
+        }
+
+        .header .tagline {
+            font-size: 12px;
+            color: #a0aec0;
+            margin-top: 6px;
+            letter-spacing: 1px;
+        }
+
+        .subject-bar {
+            background: #e94560;
+            padding: 14px 40px;
             text-align: center;
         }
 
-        .email-header h1 {
-            margin: 0;
-            font-size: 24px;
-            font-weight: bold;
-        }
-
-        .email-body {
-            padding: 25px;
-            color: #333333;
-        }
-
-        .email-body p {
+        .subject-bar h1 {
             font-size: 16px;
-            line-height: 1.6;
+            font-weight: 600;
+            color: #ffffff;
+            letter-spacing: 0.5px;
         }
 
-        .email-footer {
-            background-color: #f1f1f1;
-            padding: 20px;
-            text-align: center;
-            font-size: 14px;
-            color: #777777;
+        .body {
+            background: #ffffff;
+            padding: 40px;
+            line-height: 1.8;
+            color: #2d3748;
+            font-size: 15px;
         }
 
-        .email-footer a {
-            color: #007BFF;
+        .body p {
+            margin-bottom: 16px;
+        }
+
+        .body strong {
+            color: #1a1a2e;
+        }
+
+        .body a {
+            color: #e94560;
             text-decoration: none;
+            font-weight: 500;
         }
 
-        .email-footer a:hover {
+        .body a:hover {
             text-decoration: underline;
+        }
+
+        .body ul,
+        .body ol {
+            padding-left: 20px;
+            margin-bottom: 16px;
+        }
+
+        .body li {
+            margin-bottom: 8px;
+        }
+
+        .cta {
+            text-align: center;
+            margin: 32px 0 16px;
+        }
+
+        .cta a {
+            background: linear-gradient(135deg, #e94560, #c73652);
+            color: #ffffff !important;
+            padding: 14px 36px;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: none !important;
+            display: inline-block;
+            letter-spacing: 0.5px;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid #e2e8f0;
+            margin: 24px 0;
+        }
+
+        .meta {
+            background: #f7fafc;
+            padding: 16px 40px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 13px;
+            color: #718096;
+        }
+
+        .meta table {
+            width: 100%;
+        }
+
+        .meta td {
+            padding: 3px 0;
+        }
+
+        .meta .label {
+            font-weight: 600;
+            color: #4a5568;
+            width: 50px;
+        }
+
+        .footer {
+            background: #1a1a2e;
+            padding: 24px 40px;
+            border-radius: 0 0 12px 12px;
+            text-align: center;
+        }
+
+        .footer p {
+            font-size: 12px;
+            color: #718096;
+            margin-bottom: 8px;
+        }
+
+        .footer a {
+            color: #a0aec0;
+            text-decoration: none;
+            font-size: 12px;
+            margin: 0 8px;
+        }
+
+        .footer a:hover {
+            color: #e94560;
         }
     </style>
 </head>
+
 <body>
-    <div class="email-container">
-        <div class="email-header">
+    <div class="wrapper">
+
+        <div class="header">
+            <div class="logo">Compl<span>AI</span></div>
+            <div class="tagline">SOC2 Compliance · Powered by AI</div>
+        </div>
+
+        <div class="subject-bar">
             <h1>{{ .Subject }}</h1>
         </div>
-        <div class="email-body">
-            <p>{{ .Body }}</p>
-            <p><strong>From:</strong> {{ .From }}</p>
-            <p><strong>To:</strong> {{ .To }}</p>
+
+        <div class="body">
+            {{ .Body }}
         </div>
-        <div class="email-footer">
-            <p>&copy; 2025 Your Company. All rights reserved.</p>
-            <p><a href="https://example.com/unsubscribe">Unsubscribe</a> | <a href="https://example.com/view">View in Browser</a></p>
+
+        <div class="meta">
+            <table>
+                <tr>
+                    <td class="label">From:</td>
+                    <td>{{ .From }}</td>
+                </tr>
+                <tr>
+                    <td class="label">To:</td>
+                    <td>{{ .To }}</td>
+                </tr>
+            </table>
         </div>
+
+        <div class="footer">
+            <p>&copy; 2025 ComplAI. All rights reserved.</p>
+            <p>
+                <a href="#">Unsubscribe</a>
+                <a href="#">View in Browser</a>
+                <a href="#">Privacy Policy</a>
+            </p>
+        </div>
+
     </div>
 </body>
+
 </html>

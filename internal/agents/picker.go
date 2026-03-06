@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/sanjbh/mailforge/internal/events"
 	"github.com/sanjbh/mailforge/internal/llm"
 	"github.com/tmc/langchaingo/llms"
 )
@@ -37,18 +38,18 @@ func (p *PickerAgent) PickBestEmail(ctx context.Context, l llms.Model, emails []
 
 	streamFunc := func(context context.Context, chunk []byte) error {
 		tokens++
-		p.NotifyAll(AgentEvent{Type: EventProgress, Payload: tokens})
+		p.NotifyAll(events.AgentEvent{Type: events.EventProgress, Payload: tokens})
 		return nil
 	}
 
 	res, err := llm.Generate(ctx, l, systemPrompt, buff.String(), streamFunc)
 	if err != nil {
-		p.NotifyAll(AgentEvent{Type: EventError, Payload: tokens})
+		p.NotifyAll(events.AgentEvent{Type: events.EventError, Payload: tokens})
 		return "", err
 		// return "", fmt.Errorf("failed to generate email: %w", err)
 	}
 
-	p.NotifyAll(AgentEvent{Type: EventSuccess, Payload: tokens})
+	p.NotifyAll(events.AgentEvent{Type: events.EventSuccess, Payload: tokens})
 
 	return res, nil
 }

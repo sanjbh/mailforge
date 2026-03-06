@@ -6,8 +6,7 @@ import (
 	"os"
 )
 
-type MockMailer struct {
-}
+type MockMailer struct{}
 
 func (m *MockMailer) Send(ctx context.Context, mailer_m *Mail) error {
 
@@ -17,7 +16,7 @@ func (m *MockMailer) Send(ctx context.Context, mailer_m *Mail) error {
 	}
 	defer file.Close()
 
-	body, err := GetHTMLMailerBody(mailer_m)
+	body, err := mailer_m.GetCompleteEmailInHTML()
 	if err != nil {
 		return fmt.Errorf("failed to get email body: %w", err)
 	}

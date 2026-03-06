@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/pterm/pterm"
-	"github.com/sanjbh/mailforge/internal/agents"
+	"github.com/sanjbh/mailforge/internal/events"
 )
 
 type AgentSpinner struct {
@@ -15,6 +15,8 @@ type AgentSpinner struct {
 var activeMulti *pterm.MultiPrinter
 
 func StartMulti() error {
+	pterm.DefaultSpinner = *pterm.DefaultSpinner.WithSequence("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏").
+		WithStyle(pterm.NewStyle(pterm.FgCyan))
 	multiPrinter := pterm.DefaultMultiPrinter
 	multi, err := multiPrinter.Start()
 	if err != nil {
@@ -76,15 +78,29 @@ func PrintFail(msg string) {
 	pterm.Error.Println(msg)
 }
 
-func (a *AgentSpinner) Notify(event agents.AgentEvent) {
+func (a *AgentSpinner) Notify(event events.AgentEvent) {
 	tokens := event.Payload
 
 	switch event.Type {
-	case agents.EventProgress:
+	case events.EventProgress:
 		a.UpdateAgentSpinner(tokens)
-	case agents.EventSuccess:
+	case events.EventSuccess:
 		a.Success(tokens)
-	case agents.EventError:
+	case events.EventError:
 		a.Fail(tokens)
 	}
+}
+
+func RunWithSpinner(name string, fn func(obs events.Observer) error) error {
+	defer StopMulti()
+	if err := StartMulti(); err != nil {
+		return err
+	}
+
+	spinner, err := NewAgentSpinner(name)
+	if err != nil {
+		return err
+	}
+
+	return fn(spinner)
 }

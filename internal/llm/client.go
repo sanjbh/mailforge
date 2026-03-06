@@ -22,6 +22,7 @@ func Generate(
 	llm llms.Model,
 	system, prompt string,
 	streamFunc func(ctx context.Context, chunk []byte) error,
+	opts ...llms.CallOption,
 ) (string, error) {
 	msgs := []llms.MessageContent{
 		{
@@ -43,12 +44,13 @@ func Generate(
 	}
 
 	// log.Printf("Generating content with system: %s, prompt: %s", system, prompt)
-	opts := []llms.CallOption{}
+	options := []llms.CallOption{}
 
 	if streamFunc != nil {
-		opts = append(opts, llms.WithStreamingFunc(streamFunc))
+		options = append(options, llms.WithStreamingFunc(streamFunc))
 	}
-	res, err := llm.GenerateContent(ctx, msgs, opts...)
+	options = append(options, opts...)
+	res, err := llm.GenerateContent(ctx, msgs, options...)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate content: %w", err)
 	}

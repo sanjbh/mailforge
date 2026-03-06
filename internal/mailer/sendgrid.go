@@ -26,7 +26,7 @@ func (s *SendGridMailer) Send(ctx context.Context, m *Mail) error {
 	from := mail.NewEmail("", m.From)
 	to := mail.NewEmail("", m.To)
 
-	body, err := GetHTMLMailerBody(m)
+	body, err := m.GetCompleteEmailInHTML()
 	if err != nil {
 		return fmt.Errorf("failed to get email body: %w", err)
 	}

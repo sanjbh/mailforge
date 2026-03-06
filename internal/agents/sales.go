@@ -1,18 +1,13 @@
 package agents
 
 import (
-	"bytes"
 	"context"
-	"embed"
 	"fmt"
-	"text/template"
 
+	"github.com/sanjbh/mailforge/internal/events"
 	"github.com/sanjbh/mailforge/internal/llm"
 	"github.com/tmc/langchaingo/llms"
 )
-
-//go:embed prompts/*
-var promptsFS embed.FS
 
 type SalesAgent struct {
 	Observable
@@ -63,22 +58,6 @@ func NewEngagingSalesAgent(name string) (*SalesAgent, error) {
 	}, nil
 }
 
-func getSystemPrompt(agentType string) (string, error) {
-
-	tmpl, err := template.ParseFS(promptsFS, fmt.Sprintf("prompts/%s.txt", agentType))
-	if err != nil {
-		return "", fmt.Errorf("failed to parse template: %w", err)
-	}
-
-	var instructions bytes.Buffer
-
-	if err := tmpl.Execute(&instructions, nil); err != nil {
-		return "", fmt.Errorf("failed to execute template: %w", err)
-	}
-	return instructions.String(), nil
-
-}
-
 /* func (s *SalesAgent) GenerateEmail(
 	ctx context.Context,
 	l llms.Model,
@@ -103,16 +82,16 @@ func (s *SalesAgent) GenerateEmail(
 
 	streamFunc := func(ctx context.Context, chunk []byte) error {
 		tokens++
-		s.NotifyAll(AgentEvent{Type: EventProgress, Payload: tokens})
+		s.NotifyAll(events.AgentEvent{Type: events.EventProgress, Payload: tokens})
 		return nil
 	}
 
 	res, err := llm.Generate(ctx, l, s.Instructions, prompt, streamFunc)
 	if err != nil {
-		s.NotifyAll(AgentEvent{Type: EventError, Payload: tokens})
+		s.NotifyAll(events.AgentEvent{Type: events.EventError, Payload: tokens})
 		return "", err
 	}
-	s.NotifyAll(AgentEvent{Type: EventSuccess, Payload: tokens})
+	s.NotifyAll(events.AgentEvent{Type: events.EventSuccess, Payload: tokens})
 
 	return res, nil
 }

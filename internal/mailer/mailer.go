@@ -38,8 +38,7 @@ func NewMail(to, from, subject, body string) (*Mail, error) {
 	return &m, nil
 }
 
-func GetHTMLMailerBody(m *Mail) (string, error) {
-	// tmpl, err := template.New("email.html").ParseFS(emailTemplateFS, "templates/email.html")
+func (m *Mail) GetCompleteEmailInHTML() (string, error) {
 	tmpl, err := template.ParseFS(emailTemplateFS, "templates/email.html")
 	if err != nil {
 		return "", fmt.Errorf("failed to parse template: %w", err)

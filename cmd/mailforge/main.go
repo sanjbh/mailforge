@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"sync"
 
 	"github.com/sanjbh/mailforge/internal/agents"
 	"github.com/sanjbh/mailforge/internal/config"
+	"github.com/sanjbh/mailforge/internal/events"
 	"github.com/sanjbh/mailforge/internal/llm"
+	"github.com/sanjbh/mailforge/internal/mailer"
 	"github.com/sanjbh/mailforge/internal/ui"
 )
 
@@ -50,42 +51,120 @@ func main() {
 
 	responseEmails := make([]string, len(salesAgents))
 
-	fmt.Println()
+	ui.PrintInfo("Starting MailForge...")
 
 	err = ui.StartMulti()
 	if err != nil {
 		log.Fatalf("Failed to start multi: %v", err)
 	}
 
-	pickerSpinner, err := ui.NewAgentSpinner("Picker Agent")
-	picker := agents.NewPickerAgent()
-	picker.Register(pickerSpinner)
+	var (
+		generateEmailErrors []error
+		mutex               sync.Mutex
+	)
 
 	for index, salesAgent := range salesAgents {
 		wg.Add(1)
 
-		spinner, _ := ui.NewAgentSpinner(salesAgent.Name)
+		spinner, err := ui.NewAgentSpinner(salesAgent.Name)
+		if err != nil {
+			log.Fatalf("Failed to create spinner: %v", err)
+		}
+
 		salesAgent.Register(spinner)
 
-		go func(idx int, agent agents.SalesAgent) {
+		go func(idx int, agent *agents.SalesAgent) {
 			defer wg.Done()
 			response, err := agent.GenerateEmail(ctx, model, prompt)
 			if err != nil {
-				ui.PrintFail(err.Error())
-				os.Exit(1)
+				mutex.Lock()
+				generateEmailErrors = append(generateEmailErrors, err)
+				mutex.Unlock()
 			}
 			responseEmails[idx] = response
-		}(index, *salesAgent)
+		}(index, salesAgent)
 
 	}
 	wg.Wait()
-
-	ui.PrintInfo("Picking best email...")
-	bestEmail, err := picker.PickBestEmail(ctx, model, responseEmails)
-	if err != nil {
-		log.Fatalf("Pick best email failed: %v", err)
-	}
 	ui.StopMulti()
 
-	ui.PrintSuccess(fmt.Sprintf("Best email: %s\n", bestEmail))
+	if len(generateEmailErrors) > 0 {
+		for _, e := range generateEmailErrors {
+			ui.PrintFail(fmt.Sprintf("Generate email failed: %v", e))
+		}
+		log.Fatalf("Generate email failed with %d errors", len(generateEmailErrors))
+	}
+
+	ui.PrintInfo("Picking best email...")
+
+	var bestEmail string
+	if err = ui.RunWithSpinner("Picker Agent", func(obs events.Observer) error {
+		picker := agents.NewPickerAgent()
+		picker.Register(obs)
+
+		var pickErr error
+		bestEmail, pickErr = picker.PickBestEmail(ctx, model, responseEmails)
+		if pickErr != nil {
+			return pickErr
+		}
+		return nil
+	}); err != nil {
+		log.Fatalf("Unable to pick the best email from LLM: %v\n", err)
+	}
+
+	ui.PrintSuccess("Best email selected!")
+
+	var mailSubject string
+	if err = ui.RunWithSpinner("Subject Writer", func(obs events.Observer) error {
+		writerAgent := agents.NewSubjectWriterAgent("Subject Writer")
+		writerAgent.Register(obs)
+
+		var writerErr error
+		mailSubject, writerErr = writerAgent.WriteSubject(ctx, model, bestEmail)
+		if writerErr != nil {
+			return writerErr
+		}
+		return nil
+	}); err != nil {
+		log.Fatalf("Failed to get subject from LLM: %v\n", err)
+	}
+
+	ui.PrintSuccess("Subject generated!")
+
+	var htmlBody string
+	if err = ui.RunWithSpinner("HTML Converter", func(obs events.Observer) error {
+		converterAgent := agents.NewHTMLConverterAgent("HTML Converter")
+		converterAgent.Register(obs)
+
+		var converterErr error
+		htmlBody, converterErr = converterAgent.ConvertToHTML(ctx, model, bestEmail)
+		if converterErr != nil {
+			return converterErr
+		}
+		return nil
+
+	}); err != nil {
+		log.Fatalf("Unable to get body coverted to HTML by LLM: %v\n", err)
+	}
+
+	ui.PrintSuccess("Body converted to HTML!")
+
+	mail, err := mailer.NewMail(cfg.ToEmail, cfg.FromEmail, mailSubject, htmlBody)
+	if err != nil {
+		log.Fatalf("Unable to create new mail. %v\n", err)
+	}
+
+	ui.PrintSuccess("Mail created!")
+
+	var m mailer.Mailer
+	if cfg.MailMock {
+		m = &mailer.MockMailer{}
+	} else {
+		m = mailer.NewSendGridMailer(cfg)
+	}
+
+	if err := m.Send(ctx, mail); err != nil {
+		log.Fatalf("Unable to send email: %v\n", err)
+	}
+	ui.PrintSuccess("Email sent successfully!")
 }
