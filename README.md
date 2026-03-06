@@ -265,8 +265,4 @@ ui.RunWithSpinner("My New Agent", func(obs events.Observer) error {
 })
 ```
 
----
 
-## License
-
-MIT
